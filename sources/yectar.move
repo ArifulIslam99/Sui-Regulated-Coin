@@ -2,7 +2,7 @@ module regulated_coin::yectar{
     use sui::coin::{Self, TreasuryCap, Coin, DenyCap};
     use sui::url;
     use std::ascii;
-    use sui::deny_list::{Self, DenyList};
+    use sui::deny_list::{DenyList};
     use sui::balance;
     public struct YECTAR has drop {}
 
@@ -12,7 +12,7 @@ module regulated_coin::yectar{
     }
 
     const EInsufficientFunds: u64 = 1001;
-
+    const EDenylustnotcontains: u64 = 1002;
     fun init (otw: YECTAR, ctx: &mut TxContext) {
         let (treasury_cap, deny_cap, metadata) = coin::create_regulated_currency(
             otw,
@@ -53,6 +53,22 @@ module regulated_coin::yectar{
                 recipient,
                 ctx
             );
+    }
+
+
+    public entry fun remove_condition(
+        deny_cap: &mut DenyCap<YECTAR>,
+        deny_list: &mut DenyList,
+        recipient: address,
+        ctx: &mut TxContext
+    ){  
+        assert!(coin::deny_list_contains<YECTAR>(deny_list, recipient)==true, EDenylustnotcontains);
+        coin::deny_list_remove<YECTAR>(
+                deny_list,
+                deny_cap,
+                recipient,
+                ctx
+        );
     }
     
 }
