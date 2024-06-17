@@ -1,15 +1,17 @@
 module regulated_coin::yectar{
-    use sui::coin::{Self, TreasuryCap, Coin};
-    use std::option;
+    use sui::coin::{Self, TreasuryCap, Coin, DenyCap};
     use sui::url;
     use std::ascii;
-
+    use sui::deny_list::{DenyList};
+    use sui::balance;
     public struct YECTAR has drop {}
 
     public struct TreasuryCapHolder has key {
         id: UID,
         treasury_cap: TreasuryCap<YECTAR>
     }
+
+    const EInsufficientFunds: u64 = 1001;
 
     fun init (otw: YECTAR, ctx: &mut TxContext) {
         let (treasury_cap, deny_cap, metadata) = coin::create_regulated_currency(
@@ -33,4 +35,25 @@ module regulated_coin::yectar{
         transfer::transfer(treasury_cap_holder,  tx_context::sender(ctx));
         transfer::public_transfer(deny_cap,  tx_context::sender(ctx));
     }
+
+    public entry fun conditional_transfer(
+        deny_cap: &mut DenyCap<YECTAR>,
+        deny_list: &mut DenyList,
+        recipient: address,
+        amount: u64,
+        coin_id: &mut Coin<YECTAR>,
+        ctx: &mut TxContext
+        ) {
+            assert!(coin::value(coin_id) >= amount, EInsufficientFunds);
+            let coin_balance = coin::balance_mut(coin_id);
+            let transfer_amount = balance::split(coin_balance, amount);
+            transfer::public_transfer(coin::from_balance(transfer_amount, ctx), recipient);
+            coin::deny_list_add<YECTAR>(
+                deny_list,
+                deny_cap,
+                recipient,
+                ctx
+            );
+    }
+    
 }
